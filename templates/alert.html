@@ -1,0 +1,641 @@
+{% extends "base.html" %} {% block content %}
+
+<div class="alert-page-wrapper">
+  <style>
+    /* Base Styles - WHITE THEME */
+    .alert-page-wrapper {
+      background: #ffffff;
+      color: #374151;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    /* Responsive Container */
+    .alert-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 30px;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 768px) {
+      .alert-container {
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+      }
+    }
+
+    /* Alert Card */
+    .alert-card {
+      background: #f8fafc;
+      padding: 25px;
+      border-radius: 16px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.6s ease forwards;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .alert-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(37, 99, 235, 0.1);
+    }
+
+    /* Card Animation Delays */
+    .alert-card:nth-child(1) {
+      animation-delay: 0.2s;
+    }
+
+    .alert-card:nth-child(2) {
+      animation-delay: 0.4s;
+    }
+
+    .alert-card h2,
+    .alert-card h3 {
+      color: #2563eb;
+      margin-bottom: 20px;
+      font-size: clamp(1.5rem, 4vw, 1.8rem);
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-fill-color: transparent;
+    }
+
+    /* Form Elements */
+    .alert-input,
+    .alert-select,
+    .alert-button {
+      width: 100%;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      color: #111827;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 480px) {
+      .alert-input,
+      .alert-select,
+      .alert-button {
+        padding: 12px;
+        font-size: 14px;
+      }
+    }
+
+    .alert-input:focus,
+    .alert-select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      transform: scale(1.02);
+    }
+
+    .alert-button {
+      background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+      color: #ffffff;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      padding: 16px;
+      font-size: 18px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .alert-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .alert-button:active {
+      transform: translateY(0);
+    }
+
+    .alert-button::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.5);
+      opacity: 0;
+      border-radius: 100%;
+      transform: scale(1, 1) translate(-50%);
+      transform-origin: 50% 50%;
+    }
+
+    .alert-button:focus:not(:active)::after {
+      animation: ripple 1s ease-out;
+    }
+
+    /* Alert Box */
+    .alert-box {
+      border: 1px solid #e5e7eb;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 15px;
+      background: linear-gradient(145deg, #ffffff, #f9fafb);
+      animation: slideIn 0.5s ease;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .alert-remove-btn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .alert-remove-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+
+    /* Loading State */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    /* Success Message */
+    .success-message {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+      animation: slideIn 0.5s ease;
+      display: none;
+    }
+
+    /* Dropdown Styling */
+    .alert-select {
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563eb'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 15px center;
+      background-size: 20px;
+      padding-right: 45px;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes ripple {
+      0% {
+        transform: scale(0, 0);
+        opacity: 1;
+      }
+      20% {
+        transform: scale(25, 25);
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scale(40, 40);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+      }
+    }
+
+    /* Mobile Optimizations */
+    @media (max-width: 767px) {
+      .alert-page-wrapper {
+        padding: 15px;
+      }
+
+      .alert-card {
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .alert-card h2,
+      .alert-card h3 {
+        font-size: 1.4rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .alert-page-wrapper {
+        padding: 10px;
+      }
+
+      .alert-card {
+        padding: 15px;
+        border-radius: 12px;
+      }
+
+      h2,
+      h3 {
+        text-align: center;
+      }
+    }
+
+    /* Tablet Optimizations */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .alert-container {
+        grid-template-columns: 1fr;
+        max-width: 700px;
+      }
+
+      .alert-card {
+        padding: 30px;
+      }
+    }
+
+    /* Desktop Optimizations */
+    @media (min-width: 1200px) {
+      .alert-container {
+        gap: 50px;
+      }
+
+      .alert-card {
+        padding: 35px;
+      }
+    }
+
+    /* High DPI Screens */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      .alert-button,
+      .alert-remove-btn {
+        border: 0.5px solid transparent;
+      }
+    }
+
+    /* Light Mode Support */
+    @media (prefers-color-scheme: dark) {
+      .alert-page-wrapper {
+        background: #f9fafb;
+      }
+
+      .alert-card {
+        background: #ffffff;
+      }
+    }
+
+    /* Print Styles */
+    @media print {
+      .alert-button,
+      .alert-remove-btn {
+        display: none;
+      }
+
+      .alert-card {
+        box-shadow: none;
+        border: 1px solid #ccc;
+      }
+    }
+  </style>
+
+  <!-- Success Message Container -->
+  <div id="successMessage" class="success-message"></div>
+
+  <!-- Main Container with Grid Layout -->
+  <div class="alert-container">
+    <!-- SET ALERT FORM -->
+    <div class="alert-card">
+      <h2>📩 Set Stock Price Alert</h2>
+
+      <form id="alertForm">
+        <input
+          class="alert-input"
+          type="text"
+          id="symbol"
+          placeholder="Company Name (e.g. TCS / ICICI Bank)"
+          required
+          aria-label="Stock symbol"
+        />
+        <input
+          class="alert-input"
+          type="number"
+          id="price"
+          placeholder="Target Price"
+          required
+          aria-label="Target price"
+          step="0.01"
+          min="0"
+        />
+
+        <select
+          class="alert-select"
+          id="condition"
+          aria-label="Alert condition"
+        >
+          <option value="below">Below</option>
+          <option value="above">Above</option>
+        </select>
+
+        <input
+          class="alert-input"
+          type="email"
+          id="email"
+          placeholder="Your Email"
+          required
+          aria-label="Email address"
+        />
+
+        <button class="alert-button" type="submit" id="submitBtn">
+          <span class="button-text">Set Alert</span>
+          <span class="button-loading" style="display: none"
+            >⏳ Setting...</span
+          >
+        </button>
+      </form>
+    </div>
+
+    <!-- ACTIVE ALERTS -->
+    <div class="alert-card">
+      <h3>📌 Active Alerts</h3>
+
+      <div class="alert-dropdown-container">
+        <select
+          class="alert-select"
+          id="alertDropdown"
+          onchange="showSelectedAlert()"
+          aria-label="Select an alert to view"
+        >
+          <option value="">Select Alert</option>
+        </select>
+
+        <div
+          id="dropdownLoading"
+          style="display: none; text-align: center; padding: 10px"
+        >
+          <span style="color: #2563eb">Loading alerts...</span>
+        </div>
+      </div>
+
+      <div id="selectedAlertBox" aria-live="polite"></div>
+
+      <div
+        id="noAlertsMessage"
+        style="display: none; text-align: center; padding: 20px; color: #6b7280"
+      >
+        No active alerts found. Create one using the form!
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allAlerts = [];
+
+    // SET ALERT with animation
+    document
+      .getElementById("alertForm")
+      .addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById("submitBtn");
+        const buttonText = submitBtn.querySelector(".button-text");
+        const buttonLoading = submitBtn.querySelector(".button-loading");
+
+        // Show loading state
+        buttonText.style.display = "none";
+        buttonLoading.style.display = "inline";
+        submitBtn.classList.add("loading");
+
+        fetch("/set-alert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol: document.getElementById("symbol").value,
+            target_price: document.getElementById("price").value,
+            condition: document.getElementById("condition").value,
+            email: document.getElementById("email").value,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            // Show success message with animation
+            const successMsg = document.getElementById("successMessage");
+            successMsg.textContent = data.message;
+            successMsg.style.display = "block";
+            successMsg.style.animation = "slideIn 0.5s ease";
+
+            // Reset button state
+            setTimeout(() => {
+              buttonText.style.display = "inline";
+              buttonLoading.style.display = "none";
+              submitBtn.classList.remove("loading");
+
+              // Fade out success message
+              setTimeout(() => {
+                successMsg.style.opacity = "0";
+                successMsg.style.transition = "opacity 0.5s ease";
+                setTimeout(() => {
+                  successMsg.style.display = "none";
+                  successMsg.style.opacity = "1";
+                }, 500);
+              }, 3000);
+            }, 500);
+
+            document.getElementById("alertForm").reset();
+            loadAlerts();
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            buttonText.style.display = "inline";
+            buttonLoading.style.display = "none";
+            submitBtn.classList.remove("loading");
+          });
+      });
+
+    // LOAD ALERTS with loading state
+    function loadAlerts() {
+      const dropdownLoading = document.getElementById("dropdownLoading");
+      dropdownLoading.style.display = "block";
+
+      fetch("/get-alerts")
+        .then((res) => res.json())
+        .then((alerts) => {
+          allAlerts = alerts;
+          const dropdown = document.getElementById("alertDropdown");
+          const noAlertsMsg = document.getElementById("noAlertsMessage");
+
+          dropdown.innerHTML = `<option value="">Select Alert</option>`;
+
+          if (alerts.length === 0) {
+            noAlertsMsg.style.display = "block";
+          } else {
+            noAlertsMsg.style.display = "none";
+
+            alerts.forEach((a, i) => {
+              const opt = document.createElement("option");
+              opt.value = i;
+              opt.textContent = `${a.symbol} (${a.condition})`;
+              dropdown.appendChild(opt);
+            });
+          }
+
+          document.getElementById("selectedAlertBox").innerHTML = "";
+          dropdownLoading.style.display = "none";
+
+          // Animate dropdown appearance
+          dropdown.style.animation = "fadeInUp 0.3s ease";
+        })
+        .catch((error) => {
+          console.error("Error loading alerts:", error);
+          dropdownLoading.style.display = "none";
+        });
+    }
+
+    // SHOW ALERT with animation
+    function showSelectedAlert() {
+      const index = document.getElementById("alertDropdown").value;
+      const box = document.getElementById("selectedAlertBox");
+
+      if (index === "") {
+        box.innerHTML = "";
+        return;
+      }
+
+      const a = allAlerts[index];
+
+      // Add fade out animation
+      box.style.opacity = "0";
+      box.style.transition = "opacity 0.3s ease";
+
+      setTimeout(() => {
+        box.innerHTML = `
+      <div class="alert-box" style="animation: fadeInUp 0.4s ease;">
+        <b>Symbol:</b> ${a.symbol}<br>
+        <b>Condition:</b> ${a.condition}<br>
+        <b>Target Price:</b> ${a.target_price}<br>
+        <b>Email:</b> ${a.email}<br>
+
+        <button class="alert-remove-btn" onclick="removeAlert(${index})" aria-label="Remove alert for ${a.symbol}">
+          ❌ Remove Alert
+        </button>
+      </div>
+    `;
+
+        box.style.opacity = "1";
+      }, 300);
+    }
+
+    // DELETE ALERT with confirmation
+    function removeAlert(index) {
+      if (!confirm("Are you sure you want to remove this alert?")) {
+        return;
+      }
+
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+
+      // Show loading state on button
+      btn.innerHTML = "⏳ Removing...";
+      btn.classList.add("loading");
+
+      fetch("/delete-alert/" + index, { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => {
+          // Show success animation
+          const alertBox = document.querySelector(".alert-box");
+          if (alertBox) {
+            alertBox.style.animation = "slideIn 0.5s ease reverse";
+            setTimeout(() => {
+              loadAlerts();
+            }, 500);
+          }
+
+          // Show notification
+          const successMsg = document.getElementById("successMessage");
+          successMsg.textContent = data.message;
+          successMsg.style.display = "block";
+          successMsg.style.background =
+            "linear-gradient(135deg, #ef4444, #dc2626)";
+
+          setTimeout(() => {
+            successMsg.style.opacity = "0";
+            setTimeout(() => {
+              successMsg.style.display = "none";
+              successMsg.style.opacity = "1";
+              successMsg.style.background =
+                "linear-gradient(135deg, #10b981, #059669)";
+            }, 500);
+          }, 2000);
+          
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          btn.innerHTML = originalText;
+          btn.classList.remove("loading");
+        });
+    }
+
+    // Initialize with a slight delay for better UX
+    setTimeout(() => {
+      loadAlerts();
+    }, 100);
+
+    // Add input focus animations
+    document.querySelectorAll(".alert-input").forEach((input) => {
+      input.addEventListener("focus", function () {
+        this.parentElement.style.transform = "scale(1.01)";
+      });
+
+      input.addEventListener("blur", function () {
+        this.parentElement.style.transform = "scale(1)";
+      });
+    });
+
+    // Handle window resize for responsive adjustments
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      document.body.classList.add("resize-animation-stopper");
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        document.body.classList.remove("resize-animation-stopper");
+      }, 400);
+    });
+  </script>
+</div>
+
+{% endblock %}

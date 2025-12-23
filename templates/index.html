@@ -1,0 +1,1217 @@
+{% extends "base.html" %} {% block content %}
+
+<!-- Add responsive meta viewport if not in base.html -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Search Filter - Made responsive -->
+<div class="search-container" style="margin-bottom: 20px; position: relative">
+  <div style="display: flex; flex-direction: column; gap: 10px; width: 100%">
+    <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap">
+      <input
+        type="text"
+        id="companySearch"
+        placeholder="Search company..."
+        style="
+          flex: 1;
+          min-width: 200px;
+          padding: 12px 15px;
+          border-radius: 8px;
+          border: 1px solid #ddd;
+          background: #fff;
+          color: #333;
+          font-size: 16px;
+          box-sizing: border-box;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        "
+      />
+
+      <!-- SEARCH BUTTON -->
+      <button
+        id="searchBtn"
+        style="
+          padding: 12px 24px;
+          background: #3b82f6;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          white-space: nowrap;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        "
+      >
+        Search
+      </button>
+    </div>
+
+    <!-- Suggestions Box -->
+    <ul
+      id="suggestions"
+      style="
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        max-height: 180px;
+        overflow-y: auto;
+        display: none;
+        list-style: none;
+        padding: 0;
+        z-index: 2000;
+        margin-top: 5px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      "
+    ></ul>
+  </div>
+</div>
+
+<!-- Add Chart.js and Candlestick plugin HERE, at the top -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1"></script>
+
+<!-- PRICE CHARTS - MOVED TO TOP -->
+{% for symbol, rows in data.items() %}
+<div class="symbol-card">
+  <h2>{{ symbol }}</h2>
+
+  <!-- Price Chart - Made responsive -->
+  <div class="chart-container" style="position: relative; height: 300px; width: 100%">
+    <div class="chart-title">Price Chart</div>
+    <canvas id="priceChart-{{ loop.index }}"></canvas>
+  </div>
+</div>
+
+<script>
+  // Wait for Chart.js to be loaded
+  if (typeof Chart !== 'undefined') {
+    const rows{{ loop.index }} = {{ rows|tojson }};
+    const labels{{ loop.index }} = rows{{ loop.index }}.map(r => r['Datetime']);
+    const closes{{ loop.index }} = rows{{ loop.index }}.map(r => parseFloat(r['Close']));
+    const ema20{{ loop.index }} = rows{{ loop.index }}.map(r => parseFloat(r['EMA20']));
+    const ema50{{ loop.index }} = rows{{ loop.index }}.map(r => parseFloat(r['EMA50']));
+
+    const priceCtx{{ loop.index }} = document.getElementById('priceChart-{{ loop.index }}').getContext('2d');
+    new Chart(priceCtx{{ loop.index }}, {
+      type: 'line',
+      data: {
+        labels: labels{{ loop.index }},
+        datasets: [
+          { 
+            label: 'Close Price', 
+            data: closes{{ loop.index }}, 
+            borderColor: '#3b82f6', 
+            backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+            borderWidth: 2, 
+            fill: true, 
+            tension: 0.1 
+          },
+          { 
+            label: 'EMA20', 
+            data: ema20{{ loop.index }}, 
+            borderColor: '#10b981', 
+            borderWidth: 1, 
+            borderDash: [5,5] 
+          },
+          { 
+            label: 'EMA50', 
+            data: ema50{{ loop.index }}, 
+            borderColor: '#f59e0b', 
+            borderWidth: 1, 
+            borderDash: [5,5] 
+          }
+        ]
+      },
+      options: { 
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+          legend: { 
+            labels: { 
+              color: '#333' 
+            } 
+          } 
+        }, 
+        scales: { 
+          x: { 
+            ticks: { 
+              color: '#666', 
+              maxTicksLimit: 8
+            }, 
+            grid: { 
+              color: '#e5e7eb' 
+            } 
+          }, 
+          y: { 
+            ticks: { 
+              color: '#666' 
+            }, 
+            grid: { 
+              color: '#e5e7eb' 
+            } 
+          } 
+        } 
+      }
+    });
+  } else {
+    console.error('Chart.js not loaded for price chart {{ loop.index }}');
+  }
+</script>
+{% endfor %}
+
+<!-- COMPACT PIE CHART SECTION - Made responsive -->
+<div class="symbol-card" style="margin-bottom: 15px; padding: 12px">
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    "
+  >
+    <h2 style="font-size: 18px; margin: 0; color: #1f2937">Market Overview</h2>
+    <span style="font-size: 12px; color: #6b7280">Interactive Pie Chart</span>
+  </div>
+
+  <div class="pie-chart-container" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap">
+    <!-- Pie Chart Canvas -->
+    <div style="flex: 0 0 auto; min-width: 180px; max-width: 250px; height: 180px; margin: 0 auto">
+      <canvas id="marketPieChart"></canvas>
+    </div>
+
+    <!-- Legend and Statistics -->
+    <div style="flex: 1; min-width: 250px; font-size: 12px">
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          margin-bottom: 10px;
+        "
+      >
+        <div style="color: #6b7280">Total Symbols:</div>
+        <div style="color: #3b82f6; font-weight: 600" id="totalSymbols">0</div>
+
+        <div style="color: #6b7280">Largest Segment:</div>
+        <div style="color: #f59e0b; font-weight: 600" id="largestSegment">
+          -
+        </div>
+
+        <div style="color: #6b7280">Chart Type:</div>
+        <div style="color: #10b981">Distribution</div>
+      </div>
+
+      <!-- Segment Details (will be populated by JS) -->
+      <div
+        id="pieLegend"
+        style="
+          max-height: 120px;
+          overflow-y: auto;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 8px;
+        "
+      >
+        <!-- Legend items will be added here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Controls -->
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+      gap: 10px;
+    "
+  >
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap">
+      <button
+        id="toggleLabels"
+        style="
+          padding: 6px 12px;
+          background: #f3f4f6;
+          color: #374151;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: pointer;
+        "
+      >
+        Toggle Labels
+      </button>
+      <button
+        id="toggleLegend"
+        style="
+          padding: 6px 12px;
+          background: #f3f4f6;
+          color: #374151;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: pointer;
+        "
+      >
+        Toggle Legend
+      </button>
+    </div>
+    <div style="color: #6b7280; font-size: 11px; text-align: center; min-width: 200px">
+      <span id="hoveredSegment">Hover over segments for details</span>
+    </div>
+  </div>
+</div>
+
+<!-- DATA TABLE SECTION - Made responsive -->
+<div class="symbol-card" style="margin-bottom: 25px; padding: 15px">
+  <h2 style="font-size: 18px; margin-bottom: 15px; color: #3b82f6">
+    Company Financial Metrics
+  </h2>
+
+  <div style="overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; -webkit-overflow-scrolling: touch; background: #fff">
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; min-width: 800px">
+      <thead>
+        <tr style="background: #f9fafb">
+          <th
+            style="
+              padding: 10px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+              position: sticky;
+              left: 0;
+              background: #f9fafb;
+            "
+          >
+            S.No.
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+              position: sticky;
+              left: 50px;
+              background: #f9fafb;
+            "
+          >
+            Name
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            CMP Rs.
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            P/E
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            Mar Cap Rs.Cr.
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            Div Yld %
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            NP Qtr Rs.Cr.
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            Qtr Profit Var %
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            Sales Qtr Rs.Cr.
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            Qtr Sales Var %
+          </th>
+          <th
+            style="
+              padding: 10px;
+              text-align: right;
+              border-bottom: 1px solid #e5e7eb;
+              color: #3b82f6;
+            "
+          >
+            ROCE %
+          </th>
+        </tr>
+      </thead>
+      <tbody id="financialData">
+        <!-- Data will be populated by JavaScript -->
+      </tbody>
+    </table>
+  </div>
+
+  <div
+    style="
+      margin-top: 12px;
+      color: #6b7280;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    "
+  >
+    <div style="min-width: 200px">
+      <span id="dataSource">Loading financial data...</span>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap">
+      <button
+        id="refreshData"
+        style="
+          padding: 6px 12px;
+          background: #f3f4f6;
+          color: #374151;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: pointer;
+        "
+      >
+        Refresh Data
+      </button>
+      <button
+        id="exportData"
+        style="
+          padding: 6px 12px;
+          background: #3b82f6;
+          color: white;
+          border: 1px solid #3b82f6;
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: pointer;
+        "
+      >
+        Export CSV
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Responsive base styles */
+  @media (max-width: 768px) {
+    .symbol-card h2 {
+      font-size: 18px;
+    }
+    
+    .chart-container {
+      height: 250px !important;
+    }
+    
+    .pie-chart-container {
+      flex-direction: column;
+      align-items: stretch !important;
+    }
+    
+    .pie-chart-container > div:first-child {
+      margin-bottom: 15px;
+    }
+    
+    table {
+      font-size: 12px !important;
+    }
+    
+    th, td {
+      padding: 8px 6px !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .chart-container {
+      height: 200px !important;
+    }
+    
+    .search-container input,
+    .search-container button {
+      width: 100% !important;
+      min-width: unset !important;
+    }
+    
+    .symbol-card {
+      padding: 12px !important;
+      margin-bottom: 15px !important;
+    }
+    
+    h2 {
+      font-size: 16px !important;
+    }
+    
+    #suggestions {
+      position: fixed !important;
+      top: auto !important;
+      left: 10px !important;
+      right: 10px !important;
+      width: calc(100% - 20px) !important;
+      max-height: 200px !important;
+    }
+  }
+  
+  @media (max-width: 360px) {
+    .chart-container {
+      height: 180px !important;
+    }
+    
+    .pie-chart-container > div:first-child {
+      min-width: 150px !important;
+      height: 150px !important;
+    }
+    
+    .pie-chart-container > div:last-child {
+      min-width: unset !important;
+    }
+  }
+
+  .symbol-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: 0.2s;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .symbol-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .symbol-card h2 {
+    margin-bottom: 12px;
+    font-size: 22px;
+    color: #1f2937;
+    font-weight: 600;
+    word-wrap: break-word;
+  }
+
+  /* Search suggestions styling */
+  #suggestions li {
+    padding: 10px;
+    cursor: pointer;
+    color: #3b82f6;
+    background: #fff;
+    transition: background 0.2s;
+    word-break: break-word;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  #suggestions li:hover {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  /* Pie chart legend items */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.2s;
+    flex-wrap: wrap;
+  }
+
+  .legend-item:hover {
+    background: #f3f4f6;
+  }
+
+  .legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .legend-label {
+    color: #374151;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .legend-value {
+    color: #6b7280;
+    font-size: 10px;
+    margin-left: auto;
+  }
+
+  /* Data table styling */
+  #financialData tr {
+    border-bottom: 1px solid #e5e7eb;
+    transition: background 0.2s;
+  }
+
+  #financialData tr:hover {
+    background: #f9fafb;
+  }
+
+  #financialData td {
+    padding: 8px 10px;
+    color: #374151;
+    word-break: break-word;
+  }
+
+  /* Make first two columns sticky on mobile */
+  @media (max-width: 768px) {
+    #financialData td:first-child,
+    #financialData td:nth-child(2) {
+      position: sticky;
+      left: 0;
+      background: #fff;
+      z-index: 1;
+    }
+    
+    #financialData td:nth-child(2) {
+      left: 40px;
+    }
+  }
+
+  .positive {
+    color: #10b981 !important;
+  }
+
+  .negative {
+    color: #ef4444 !important;
+  }
+
+  .neutral {
+    color: #6b7280 !important;
+  }
+  
+  /* Pagination responsiveness */
+  .pagination-container {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin: 25px 0;
+    padding: 0 10px;
+  }
+  
+  .pagination-container a,
+  .pagination-container span {
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+  }
+</style>
+
+<!-- PIE CHART SCRIPT -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Get all symbols from the page
+    const symbolCards = document.querySelectorAll(
+      ".symbol-card:not(:first-child):not(:nth-child(2)) h2"
+    );
+    const symbols = Array.from(symbolCards).map((card) =>
+      card.textContent.trim()
+    );
+
+    if (symbols.length === 0) return;
+
+    // Update total symbols count
+    document.getElementById("totalSymbols").textContent = symbols.length;
+
+    // Generate realistic data (percentage distribution)
+    const totalValue = 1000; // Base total value
+    const pieData = [];
+    let remaining = totalValue;
+
+    for (let i = 0; i < symbols.length; i++) {
+      if (i === symbols.length - 1) {
+        pieData.push(remaining);
+      } else {
+        const value = Math.floor(Math.random() * (remaining / 2)) + 50;
+        pieData.push(value);
+        remaining -= value;
+      }
+    }
+
+    // Color palette matching the white theme
+    const pieColors = [
+      "#3b82f6",
+      "#f59e0b",
+      "#10b981",
+      "#8b5cf6",
+      "#ec4899",
+      "#ef4444",
+      "#06b6d4",
+      "#84cc16",
+      "#f97316",
+      "#6366f1",
+      "#14b8a6",
+      "#f43f5e",
+      "#0ea5e9",
+      "#22c55e",
+      "#eab308",
+    ];
+
+    // Calculate percentages
+    const total = pieData.reduce((sum, val) => sum + val, 0);
+    const percentages = pieData.map((val) => ((val / total) * 100).toFixed(1));
+
+    // Find largest segment
+    const maxIndex = pieData.indexOf(Math.max(...pieData));
+    document.getElementById("largestSegment").textContent =
+      symbols[maxIndex] + ` (${percentages[maxIndex]}%)`;
+
+    // Create legend items
+    const legendContainer = document.getElementById("pieLegend");
+    symbols.forEach((symbol, index) => {
+      const legendItem = document.createElement("div");
+      legendItem.className = "legend-item";
+      legendItem.innerHTML = `
+        <div class="legend-color" style="background-color: ${
+          pieColors[index % pieColors.length]
+        }"></div>
+        <div class="legend-label" title="${symbol}">${symbol}</div>
+        <div class="legend-value">${percentages[index]}%</div>
+      `;
+      legendContainer.appendChild(legendItem);
+    });
+
+    // Create pie chart
+    const pieCtx = document.getElementById("marketPieChart").getContext("2d");
+    const pieChart = new Chart(pieCtx, {
+      type: "pie",
+      data: {
+        labels: symbols.map((symbol, i) => `${symbol} (${percentages[i]}%)`),
+        datasets: [
+          {
+            data: pieData,
+            backgroundColor: symbols.map(
+              (_, i) => pieColors[i % pieColors.length]
+            ),
+            borderColor: "#fff",
+            borderWidth: 2,
+            hoverBorderColor: "#3b82f6",
+            hoverBorderWidth: 2,
+            hoverOffset: 10,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: false,
+            position: "right",
+            labels: {
+              color: "#374151",
+              font: { size: 10 },
+              padding: 15,
+            },
+          },
+          tooltip: {
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            titleColor: "#3b82f6",
+            bodyColor: "#374151",
+            borderColor: "#e5e7eb",
+            borderWidth: 1,
+            cornerRadius: 6,
+            displayColors: true,
+            callbacks: {
+              label: function (context) {
+                const label = context.label || "";
+                const value = context.raw || 0;
+                const percentage = ((value / total) * 100).toFixed(1);
+                return `${
+                  label.split(" (")[0]
+                }: ${value.toLocaleString()} (${percentage}%)`;
+              },
+            },
+          },
+          datalabels: {
+            display: false,
+          },
+        },
+        animation: {
+          animateScale: true,
+          animateRotate: true,
+          duration: 1000,
+        },
+        onClick: function (evt, elements) {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const symbol = symbols[index];
+            alert(
+              `Selected: ${symbol}\nValue: ${pieData[
+                index
+              ].toLocaleString()}\nPercentage: ${percentages[index]}%`
+            );
+          }
+        },
+        onHover: function (evt, elements) {
+          const hoverText = document.getElementById("hoveredSegment");
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            hoverText.textContent = `${symbols[index]}: ${percentages[index]}%`;
+            hoverText.style.color = pieColors[index % pieColors.length];
+          } else {
+            hoverText.textContent = "Hover over segments for details";
+            hoverText.style.color = "#6b7280";
+          }
+        },
+      },
+    });
+
+    // Add Chart.js datalabels plugin for segment labels
+    const dataLabelsPlugin = {
+      id: "datalabels",
+      afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        const meta = chart.getDatasetMeta(0);
+
+        if (!chart.options.plugins.datalabels?.display) return;
+
+        meta.data.forEach((element, index) => {
+          const { x, y } = element.tooltipPosition();
+          const radius = element.outerRadius * 0.7;
+          const angle =
+            element.endAngle - (element.endAngle - element.startAngle) / 2;
+
+          // Position for label
+          const labelX = x + Math.cos(angle) * radius;
+          const labelY = y + Math.sin(angle) * radius;
+
+          // Draw label
+          ctx.save();
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 10px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          // Background for better readability
+          ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+          const text = percentages[index] + "%";
+          const textWidth = ctx.measureText(text).width;
+          const padding = 4;
+          ctx.fillRect(
+            labelX - textWidth / 2 - padding,
+            labelY - 8,
+            textWidth + padding * 2,
+            16
+          );
+
+          // Text
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(text, labelX, labelY);
+          ctx.restore();
+        });
+      },
+    };
+
+    Chart.register(dataLabelsPlugin);
+
+    // Chart controls
+    let showLabels = false;
+    let showLegend = true;
+
+    document
+      .getElementById("toggleLabels")
+      .addEventListener("click", function () {
+        showLabels = !showLabels;
+        pieChart.options.plugins.datalabels = { display: showLabels };
+        pieChart.update();
+        this.style.background = showLabels ? "#3b82f6" : "#f3f4f6";
+        this.style.color = showLabels ? "#fff" : "#374151";
+      });
+
+    document
+      .getElementById("toggleLegend")
+      .addEventListener("click", function () {
+        showLegend = !showLegend;
+        legendContainer.style.display = showLegend ? "block" : "none";
+        this.style.background = showLegend ? "#3b82f6" : "#f3f4f6";
+        this.style.color = showLegend ? "#fff" : "#374151";
+      });
+    
+    // FINANCIAL DATA TABLE SCRIPT - UPDATED WITH REAL DATA
+    const financialDataContainer = document.getElementById("financialData");
+    const dataSourceElement = document.getElementById("dataSource");
+
+    let original_data = [];
+
+    // Format numbers with commas, handle N/A
+    function formatNumber(num) {
+      if (num === null || num === undefined || num === "N/A" || isNaN(num)) return "N/A";
+      return parseFloat(num).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // Color based on value, handle N/A
+    function getColorClass(value, type) {
+      if (value === "N/A" || value === null || value === undefined || isNaN(value)) return "neutral";
+      
+      if (type === "profitVar" || type === "salesVar") {
+        return parseFloat(value) >= 0 ? "positive" : "negative";
+      } else if (type === "roce") {
+        return parseFloat(value) > 15
+          ? "positive"
+          : parseFloat(value) < 10
+          ? "negative"
+          : "neutral";
+      }
+      return "neutral";
+    }
+
+    // Render Table Data - updated to handle N/A
+    function renderTable(data) {
+      financialDataContainer.innerHTML = "";
+
+      data.forEach((row) => {
+        const tr = document.createElement("tr");
+
+        // Format values properly
+        const cmpFormatted = row.cmp !== "N/A" && row.cmp !== null && row.cmp !== undefined ? 
+          parseFloat(row.cmp).toFixed(2) : "N/A";
+        
+        const peFormatted = row.pe === "N/A" || row.pe === null || row.pe === undefined ? 
+          "N/A" : parseFloat(row.pe).toFixed(2);
+        
+        const marCapFormatted = row.marCap !== "N/A" && row.marCap !== null && row.marCap !== undefined ? 
+          parseFloat(row.marCap).toFixed(2) : "N/A";
+        
+        const divYldFormatted = row.divYld === "N/A" || row.divYld === null || row.divYld === undefined ? 
+          "N/A" : parseFloat(row.divYld).toFixed(2);
+        
+        const npQtrFormatted = row.npQtr !== "N/A" && row.npQtr !== null && row.npQtr !== undefined ? 
+          parseFloat(row.npQtr).toFixed(2) : "N/A";
+        
+        const profitVarFormatted = row.profitVar === "N/A" || row.profitVar === null || row.profitVar === undefined ? 
+          "N/A" : parseFloat(row.profitVar).toFixed(1);
+        
+        const salesQtrFormatted = row.salesQtr !== "N/A" && row.salesQtr !== null && row.salesQtr !== undefined ? 
+          parseFloat(row.salesQtr).toFixed(2) : "N/A";
+        
+        const salesVarFormatted = row.salesVar === "N/A" || row.salesVar === null || row.salesVar === undefined ? 
+          "N/A" : parseFloat(row.salesVar).toFixed(1);
+        
+        const roceFormatted = row.roce === "N/A" || row.roce === null || row.roce === undefined ? 
+          "N/A" : parseFloat(row.roce).toFixed(1);
+
+        tr.innerHTML = `
+          <td style="font-weight: 600; color: #3b82f6;">${row.sno}</td>
+          <td style="font-weight: 600; color: #1f2937;">${row.name}</td>
+          <td class="neutral" style="text-align: right;">${formatNumber(row.cmp)}</td>
+          <td class="neutral" style="text-align: right;">${peFormatted}</td>
+          <td class="neutral" style="text-align: right;">${formatNumber(row.marCap)}</td>
+          <td class="neutral" style="text-align: right;">${divYldFormatted === "N/A" ? "N/A" : divYldFormatted + '%'}</td>
+          <td class="neutral" style="text-align: right;">${formatNumber(row.npQtr)}</td>
+          <td class="${getColorClass(row.profitVar, "profitVar")}" style="text-align: right;">${profitVarFormatted === "N/A" ? "N/A" : profitVarFormatted + '%'}</td>
+          <td class="neutral" style="text-align: right;">${formatNumber(row.salesQtr)}</td>
+          <td class="${getColorClass(row.salesVar, "salesVar")}" style="text-align: right;">${salesVarFormatted === "N/A" ? "N/A" : salesVarFormatted + '%'}</td>
+          <td class="${getColorClass(row.roce, "roce")}" style="text-align: right;">${roceFormatted === "N/A" ? "N/A" : roceFormatted + '%'}</td>
+        `;
+
+        financialDataContainer.appendChild(tr);
+      });
+
+      // Changed this line to show company name instead of count
+      if (data.length > 0) {
+        dataSourceElement.textContent = `Showing data for ${data[0].name} (Live Data)`;
+      } else {
+        dataSourceElement.textContent = `No data available`;
+      }
+    }
+
+    // RANDOM fallback generator (if API fails)
+    function generateFallbackData(symbol, index) {
+      const name = symbol || "Company";
+      // Check if it's a commodity/crypto
+      const isCommodityCrypto = ["Crude Oil", "Silver", "Gold", "Bitcoin", "Ethereum", "Binance Coin", "Solana", "Dogecoin"].includes(name);
+      
+      if (isCommodityCrypto) {
+        return {
+          sno: index + 1,
+          name: name,
+          cmp: (Math.random() * 100000 + 50).toFixed(2),
+          pe: "N/A",
+          marCap: (Math.random() * 1000000 + 1000).toFixed(0),
+          divYld: "N/A",
+          npQtr: "N/A",
+          profitVar: "N/A",
+          salesQtr: "N/A",
+          salesVar: "N/A",
+          roce: "N/A",
+        };
+      } else {
+        return {
+          sno: index + 1,
+          name: name,
+          cmp: (Math.random() * 5000 + 50).toFixed(2),
+          pe: (Math.random() * 50 + 5).toFixed(2),
+          marCap: (Math.random() * 100000 + 1000).toFixed(0),
+          divYld: (Math.random() * 5).toFixed(2),
+          npQtr: (Math.random() * 1000 + 50).toFixed(0),
+          profitVar: (Math.random() * 100 - 30).toFixed(1),
+          salesQtr: (Math.random() * 5000 + 100).toFixed(0),
+          salesVar: (Math.random() * 100 - 20).toFixed(1),
+          roce: (Math.random() * 40 + 5).toFixed(1),
+        };
+      }
+    }
+
+    // MAIN FUNCTION – REAL DATA HERE
+    function populateFinancialData() {
+      // Get current page number from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentPage = parseInt(urlParams.get('page')) || 1;
+      
+      // === REAL LIVE API CALL HERE ===
+      // Pass page parameter to get data for current page company only
+      fetch(`/real-financial-data?page=${currentPage}`)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          original_data = data;
+          renderTable(data);
+          return;
+        })
+        .catch((error) => {
+          console.error('Error fetching financial data:', error);
+          // Fallback to random data if real API fails
+          // Get only the current page company for fallback
+          const currentSymbol = symbols[0] || "Company";
+          original_data = [generateFallbackData(currentSymbol, 0)];
+          renderTable(original_data);
+          dataSourceElement.textContent = `Showing simulated data for ${currentSymbol}`;
+        });
+    }
+
+    // INITIAL LOAD
+    populateFinancialData();
+
+    // REFRESH BUTTON
+    document
+      .getElementById("refreshData")
+      .addEventListener("click", function () {
+        populateFinancialData();
+      });
+
+    // EXPORT CSV
+    document
+      .getElementById("exportData")
+      .addEventListener("click", function () {
+        if (!original_data || original_data.length === 0) {
+          alert("No data to export");
+          return;
+        }
+        
+        const headers = [
+          "S.No",
+          "Name",
+          "CMP Rs",
+          "P/E",
+          "Market Cap",
+          "Dividend Yield",
+          "Net Profit",
+          "Profit Var",
+          "Sales",
+          "Sales Var",
+          "ROCE",
+        ];
+
+        const rows = original_data.map((row) =>
+          [
+            row.sno,
+            `"${row.name}"`,
+            row.cmp || 0,
+            row.pe === "N/A" ? "N/A" : row.pe || 0,
+            row.marCap || 0,
+            row.divYld === "N/A" ? "N/A" : row.divYld || 0,
+            row.npQtr === "N/A" ? "N/A" : row.npQtr || 0,
+            row.profitVar === "N/A" ? "N/A" : row.profitVar || 0,
+            row.salesQtr === "N/A" ? "N/A" : row.salesQtr || 0,
+            row.salesVar === "N/A" ? "N/A" : row.salesVar || 0,
+            row.roce === "N/A" ? "N/A" : row.roce || 0,
+          ].join(",")
+        );
+
+        const csvContent = [headers.join(","), ...rows].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${original_data[0]?.name || 'financial'}_data.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+  });
+</script>
+
+<!-- Pagination with all page numbers - Made responsive -->
+<div
+  class="pagination-container"
+  style="
+    margin: 25px 0;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 10px;
+  "
+>
+  {% for p in range(1, total_pages + 1) %} {% if p == page %}
+  <span
+    style="
+      padding: 8px 12px;
+      background: #3b82f6;
+      color: #fff;
+      border-radius: 8px;
+      font-weight: 600;
+      min-width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    "
+    >{{ p }}</span
+  >
+  {% else %}
+  <a
+    href="/?page={{ p }}"
+    style="
+      padding: 8px 12px;
+      background: #fff;
+      color: #3b82f6;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      min-width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    "
+    >{{ p }}</a
+  >
+  {% endif %} {% endfor %}
+</div>
+
+
+<!-- SEARCH + AUTOSUGGEST -->
+<script>
+  const companyPages = {{ company_pages|tojson }};
+  const companyNames = Object.keys(companyPages);
+  const searchInput = document.getElementById("companySearch");
+  const suggestionsBox = document.getElementById("suggestions");
+
+  function searchCompany(name=null){
+      const term = (name || searchInput.value).toLowerCase();
+      if (companyPages[term]) {
+          window.location.href = "/?page=" + companyPages[term];
+      }
+  }
+
+  document.getElementById("searchBtn").addEventListener("click", () => searchCompany());
+  searchInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") searchCompany();
+  });
+
+  searchInput.addEventListener("input", function () {
+      const value = this.value.toLowerCase();
+      suggestionsBox.innerHTML = "";
+      if (!value) { suggestionsBox.style.display = "none"; return; }
+      const filtered = companyNames.filter(name => name.toLowerCase().startsWith(value));
+      if (filtered.length === 0) { suggestionsBox.style.display = "none"; return; }
+      filtered.forEach(name => {
+          const li = document.createElement("li");
+          li.textContent = name;
+          suggestionsBox.appendChild(li);
+          li.addEventListener("click", () => searchCompany(name));
+      });
+      suggestionsBox.style.display = "block";
+  });
+
+  document.addEventListener("click", function(e){
+      if (!searchInput.contains(e.target)) {
+          suggestionsBox.style.display = "none";
+      }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends "base.html" %} 
+{% block content %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>About Us | StockVision</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+/* ===== SCOPE SAFE CSS ===== */
+#sv-about-page{
+    all:initial;
+    font-family:Arial, Helvetica, sans-serif;
+}
+#sv-about-page *{
+    box-sizing:border-box;
+}
+
+/* HERO */
+.sv-hero{
+    min-height:90vh;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(circle at top,#0ea5e9,#020617);
+    padding:40px 20px;
+}
+.sv-hero-box{
+    text-align:center;
+    max-width:800px;
+}
+.sv-hero-title{
+    font-size:3.2rem;
+    font-weight:800;
+    color:#ffffff;
+}
+.sv-hero-title span{
+    color:#38bdf8;
+}
+.sv-hero-text{
+    margin:20px 0;
+    font-size:1.15rem;
+    color:#e5e7eb;
+}
+.sv-hero-btn{
+    padding:14px 38px;
+    background:#38bdf8;
+    border:none;
+    border-radius:50px;
+    font-size:1rem;
+    cursor:pointer;
+}
+
+/* ABOUT */
+.sv-about{
+    background:#ffffff;
+    padding:90px 8vw;
+}
+.sv-about-grid{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:60px;
+    align-items:center;
+}
+.sv-about-heading{
+    font-size:2.4rem;
+    margin-bottom:18px;
+}
+.sv-about-desc{
+    font-size:1.05rem;
+    line-height:1.9;
+    color:#444;
+}
+.sv-about-image img{
+    width:100%;
+    border-radius:24px;
+}
+
+/* FEATURES */
+.sv-features{
+    background:#f8fafc;
+    padding:90px 8vw;
+}
+.sv-features-title{
+    text-align:center;
+    font-size:2.4rem;
+    margin-bottom:60px;
+}
+.sv-feature-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:35px;
+}
+.sv-feature{
+    background:#ffffff;
+    padding:40px 30px;
+    border-radius:22px;
+    text-align:center;
+}
+.sv-feature i{
+    font-size:2.8rem;
+    color:#0ea5e9;
+    margin-bottom:20px;
+}
+
+/* NEW INFO SECTION (NO STATS, NO CARDS) */
+.sv-info{
+    background:#ffffff;
+    padding:110px 8vw;
+}
+.sv-info-title{
+    text-align:center;
+    font-size:2.5rem;
+    margin-bottom:80px;
+    font-weight:800;
+}
+.sv-info-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:60px;
+}
+.sv-info-item{
+    position:relative;
+    padding-left:35px;
+}
+.sv-info-item::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:8px;
+    width:6px;
+    height:100%;
+    background:#0ea5e9;
+    border-radius:6px;
+}
+.sv-info-item h3{
+    font-size:1.5rem;
+    margin-bottom:14px;
+    color:#020617;
+}
+.sv-info-item p{
+    font-size:1.05rem;
+    line-height:1.85;
+    color:#555;
+}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+    .sv-about-grid{
+        grid-template-columns:1fr;
+    }
+    .sv-hero-title{
+        font-size:2.4rem;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="sv-about-page">
+
+<!-- HERO -->
+<section class="sv-hero">
+    <div class="sv-hero-box">
+        <h1 class="sv-hero-title">About <span>StockVision</span></h1>
+        <p class="sv-hero-text">
+            Smart market intelligence for modern traders
+        </p>
+        <button class="sv-hero-btn" onclick="svScroll()">Discover More</button>
+    </div>
+</section>
+
+<!-- ABOUT -->
+<section class="sv-about" id="sv-about">
+    <div class="sv-about-grid">
+        <div>
+            <h2 class="sv-about-heading">Who We Are</h2>
+            <p class="sv-about-desc">
+                StockVision is a next-generation stock market platform providing
+                real-time market data, intelligent alerts, and powerful tools
+                designed for traders and long-term investors.
+            </p>
+        </div>
+        <div class="sv-about-image">
+            <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3">
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="sv-features">
+    <h2 class="sv-features-title">Why StockVision</h2>
+    <div class="sv-feature-grid">
+        <div class="sv-feature">
+            <i class="fas fa-chart-line"></i>
+            <h3>Live Market Data</h3>
+            <p>Precise & fast stock price updates.</p>
+        </div>
+        <div class="sv-feature">
+            <i class="fas fa-bell"></i>
+            <h3>Smart Alerts</h3>
+            <p>Never miss critical price movements.</p>
+        </div>
+        <div class="sv-feature">
+            <i class="fas fa-lock"></i>
+            <h3>Secure System</h3>
+            <p>Built with data safety as top priority.</p>
+        </div>
+    </div>
+</section>
+
+<!-- NEW INFORMATION SECTION -->
+<section class="sv-info">
+    <h2 class="sv-info-title">Market Analysis Tools</h2>
+
+    <div class="sv-info-list">
+
+        <div class="sv-info-item">
+            <h3>Candlestick Chart</h3>
+            <p>
+                We have built a candlestick chart that displays accurate and
+                real-time stock data, making it easy to understand price trends
+                and market movements.
+            </p>
+        </div>
+
+        <div class="sv-info-item">
+            <h3>Pie Chart Analysis</h3>
+            <p>
+                We designed a pie chart that visually represents stock or company
+                data distribution, helping users quickly analyze proportions
+                and insights.
+            </p>
+        </div>
+
+        <div class="sv-info-item">
+            <h3>Company Financial Metrics</h3>
+            <p>
+                This section showcases key company financial metrics such as
+                revenue, profit, growth, and important financial ratios
+                in a structured and readable format.
+            </p>
+        </div>
+
+        <div class="sv-info-item">
+            <h3>Hotchart</h3>
+            <p>
+                The Hotchart page highlights trending and high-momentum stocks
+                that are currently active in the market.
+            </p>
+        </div>
+
+        <div class="sv-info-item">
+            <h3>Stock Comparison</h3>
+            <p>
+                Our comparison page allows users to compare stock data of
+                multiple companies side by side for better analysis and
+                decision-making.
+            </p>
+        </div>
+
+    </div>
+</section>
+
+</div>
+
+<script>
+function svScroll(){
+    document.getElementById("sv-about").scrollIntoView({behavior:"smooth"});
+}
+</script>
+
+</body>
+</html>
+
+{% endblock %}

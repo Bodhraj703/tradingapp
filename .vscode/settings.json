@@ -1,0 +1,8 @@
+{
+    "python.defaultInterpreterPath": "./venv/Scripts/python",
+    "python.terminal.activateEnvironment": true,
+    "files.autoSave": "afterDelay",
+    "editor.formatOnSave": true,
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
+}

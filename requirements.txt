@@ -1,4 +1,7 @@
+Flask
+gunicorn
+requests
 pandas
-pandas_ta
 yfinance
 python-dotenv
+upstox-python

@@ -4,4 +4,4 @@ requests
 pandas
 yfinance
 python-dotenv
-upstox-python
+

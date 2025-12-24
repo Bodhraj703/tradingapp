@@ -11,7 +11,8 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.background import BackgroundScheduler
-from tradingapp.yahoo_client import YahooClient
+from yahoo_client import YahooClient
+
 
 load_dotenv()  # Load .env file
 

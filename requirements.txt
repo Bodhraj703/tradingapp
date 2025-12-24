@@ -1,9 +1,8 @@
 Flask
-gunicorn
-requests
-pandas
+gunicorn==23.0.0
+requests==2.32.5
+pandas==2.3.3
 yfinance==0.2.40
-python-dotenv
-pytz
-tzdata
+python-dotenv==1.2.1
+pandas_ta
 apscheduler

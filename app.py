@@ -12,6 +12,11 @@ import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.background import BackgroundScheduler
 from yahoo_client import YahooClient
+ 
+
+
+
+
 
 
 load_dotenv()  # Load .env file
@@ -107,11 +112,18 @@ def index():
         name: fetch_data(symbol, is_index)
     }
 
+    # 🔥 SEARCH ke liye mapping
+    company_pages = {
+        company.lower(): idx + 1
+        for idx, (company, _) in enumerate(items)
+    }
+
     return render_template(
         "index.html",
         data=data,
         page=page,
         total_pages=total_pages,
+        company_pages=company_pages,  # ✅ VERY IMPORTANT
         year=datetime.now().year
     )
 
@@ -669,6 +681,9 @@ def send_contact():
 # ================= SEND CONTACT ===================================
 
 
-if __name__ == "__main__":
-     app.run(debug=True)
+# if __name__ == "__main__":
+#      app.run(debug=True)
     # pass
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)

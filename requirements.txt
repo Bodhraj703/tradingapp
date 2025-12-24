@@ -2,6 +2,8 @@ Flask
 gunicorn
 requests
 pandas
-yfinance
+yfinance==0.2.40
 python-dotenv
-upstox-python
+pytz
+tzdata
+apscheduler

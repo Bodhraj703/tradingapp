@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request,jsonify
 import yfinance as yf
 from utils import calculate_indicators
 from datetime import datetime
@@ -11,7 +11,7 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from tradingapp.yahoo_client import YahooClient
 
 load_dotenv()  # Load .env file
 
@@ -24,7 +24,7 @@ EMAIL_PASS = os.getenv("EMAIL_PASS")
 ALERT_FILE = "alerts.json"
 
 app = Flask(__name__)
-
+yahoo = YahooClient()
 
 # Symbols: (symbol_name, is_index)
 symbols = {
@@ -67,73 +67,50 @@ symbols = {
 
 
 def fetch_data(symbol, is_index=False):
-    """
-    Fetch stock/index data and calculate indicators.
-    """
-    try:
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period="5d", interval="1m")
-        if df.empty:
-            df = ticker.history(period="5d", interval="5m")
-        if df.empty:
-            print(f"No data returned for {symbol}")
-            return []
+    df = yahoo.history(symbol, period="5d", interval="5m")
 
-        df = df.reset_index()
-        if "Datetime" not in df.columns and "Date" in df.columns:
-            df.rename(columns={"Date": "Datetime"}, inplace=True)
-
-        df["Datetime"] = pd.to_datetime(df["Datetime"])
-
-        if not is_index:
-            # Resample for better visualization
-            df = df.resample("15min", on="Datetime").agg({
-                "Open": "first",
-                "High": "max",
-                "Low": "min",
-                "Close": "last",
-                "Volume": "sum"
-            }).dropna().reset_index()
-        else:
-            df["Volume"] = 0
-
-        df = calculate_indicators(df)
-        return df.tail(200).to_dict(orient="records")
-
-    except Exception as e:
-        print(f"Error fetching {symbol}: {e}")
+    if df.empty:
         return []
+
+    df = df.reset_index()
+    df.rename(columns={"Date": "Datetime"}, inplace=True)
+
+    if not is_index:
+        df = df.resample("15min", on="Datetime").agg({
+            "Open": "first",
+            "High": "max",
+            "Low": "min",
+            "Close": "last",
+            "Volume": "sum"
+        }).dropna().reset_index()
+    else:
+        df["Volume"] = 0
+
+    df = calculate_indicators(df)
+    return df.tail(200).to_dict(orient="records")
+
 
 
 @app.route("/")
 def index():
-    """
-    Main page with pagination: 1 company per page.
-    """
     page = int(request.args.get("page", 1))
-    per_page = 1  # Show 1 company per page
+    per_page = 1
 
-    all_companies = list(symbols.keys())
-    total_pages = len(all_companies)
+    items = list(symbols.items())
+    total_pages = len(items)
 
-    # Determine which company to show
     start = (page - 1) * per_page
-    end = start + per_page
-    visible_symbols = list(symbols.items())[start:end]
+    name, (symbol, is_index) = items[start]
 
-    # Fetch data for the selected company
-    data_dict = {name: fetch_data(symbol, is_index)
-                 for name, (symbol, is_index) in visible_symbols}
-
-    # For search/autocomplete in template
-    company_pages = {c.lower(): i+1 for i, c in enumerate(all_companies)}
+    data = {
+        name: fetch_data(symbol, is_index)
+    }
 
     return render_template(
         "index.html",
-        data=data_dict,
+        data=data,
         page=page,
         total_pages=total_pages,
-        company_pages=company_pages,
         year=datetime.now().year
     )
 
@@ -305,6 +282,31 @@ def real_market_overview():
 @app.route("/market-overview")
 def market_overview():
     indices = {
+        "NIFTY": "^NSEI",
+        "BANKNIFTY": "^NSEBANK",
+        "GOLD": "GC=F",
+        "BTC": "BTC-USD"
+    }
+
+    result = {}
+
+    for name, symbol in indices.items():
+        price = yahoo.price(symbol)
+        hist = yahoo.history(symbol, period="2d")
+
+        if price and len(hist) >= 2:
+            prev = hist["Close"].iloc[-2]
+            change = round(((price - prev) / prev) * 100, 2)
+        else:
+            change = None
+
+        result[name] = {
+            "price": round(price, 2) if price else None,
+            "change": change
+        }
+
+    return jsonify(result)
+    indices = {
         "NIFTY 50": "^NSEI",
         "BankNifty": "^NSEBANK",
         "Sensex": "^BSESN",
@@ -454,112 +456,33 @@ def hotchart_data():
 
 # ==============================for footer show show data =====================
 
-@app.route('/footer-data')
+# ================= FOOTER DATA =================
+
+@app.route("/footer-data")
 def footer_data():
-    # Get the current page number from request args
-    page = request.args.get('page', 1, type=int)
-
-    # Get all companies
-    all_companies = list(symbols.keys())
-    total_pages = len(all_companies)
-
-    # Determine which company is on this page
-    current_company = ""
-    if 1 <= page <= total_pages:
-        current_company = all_companies[page - 1]
-
-    # Clean company name (remove extra spaces, etc.)
-    current_company_clean = current_company.strip().upper().split()[
-        0] if current_company else ""
-
-    # Define the specific tickers for the footer (BTC, ETH, SPY, AAPL, VIX)
     footer_symbols = {
-        "BTC": "BTC-USD",      # Bitcoin
-        "ETH": "ETH-USD",      # Ethereum
-        "SPY": "SPY",          # S&P 500 ETF
-        "AAPL": "AAPL",        # Apple
-        "VIX": "^VIX",         # Volatility Index
+        "BTC": "BTC-USD",
+        "ETH": "ETH-USD",
+        "AAPL": "AAPL",
+        "VIX": "^VIX"
     }
 
-    # Add Indian market indices for context
-    indian_indices = {
-        "NIFTY": "^NSEI",      # Nifty 50
-        "SENSEX": "^BSESN",    # Sensex
-        "BANKNIFTY": "^NSEBANK"  # Bank Nifty
-    }
+    data = {}
 
-    # Merge all symbols
-    all_symbols = {**footer_symbols, **indian_indices}
+    for name, symbol in footer_symbols.items():
+        price = yahoo.price(symbol)
+        hist = yahoo.history(symbol, period="2d")
 
-    # Prepare response data
-    response_data = {
-        "current_company": current_company,
-        "current_company_clean": current_company_clean,
-        "page": page,
-        "total_pages": total_pages,
-        "timestamp": datetime.now().isoformat(),
-        "footer_tickers": {},
-    }
+        prev = hist["Close"].iloc[-2] if len(hist) >= 2 else price
+        change = price - prev if price else None
 
-    # Fetch data for all tickers
-    for display_name, symbol in all_symbols.items():
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+        data[name] = {
+            "price": round(price, 2) if price else None,
+            "change": round(change, 2) if change else None,
+            "is_positive": change >= 0 if change else None
+        }
 
-            # Get current price
-            current_price = info.get("currentPrice")
-            if current_price is None:
-                current_price = info.get("regularMarketPrice")
-            if current_price is None:
-                current_price = info.get("regularMarketPreviousClose")
-            if current_price is None:
-                current_price = info.get("previousClose")
-            if current_price is None:
-                # Try to get from history if info doesn't have price
-                hist = ticker.history(period="1d", interval="1m")
-                if not hist.empty:
-                    current_price = hist['Close'].iloc[-1]
-
-            # Get previous close
-            previous_close = info.get("previousClose")
-            if previous_close is None:
-                hist = ticker.history(period="2d")
-                if len(hist) >= 2:
-                    previous_close = hist['Close'].iloc[-2]
-                elif current_price is not None:
-                    # If we can't get previous close, assume no change
-                    previous_close = current_price
-
-            # Calculate change
-            change = 0
-            change_percent = 0
-            if current_price is not None and previous_close is not None and previous_close != 0:
-                change = current_price - previous_close
-                change_percent = (change / previous_close) * 100
-
-            response_data["footer_tickers"][display_name] = {
-                "symbol": symbol,
-                "price": round(current_price, 2) if current_price is not None else None,
-                "change": round(change, 2) if current_price is not None else None,
-                "change_percent": round(change_percent, 2) if current_price is not None else None,
-                "is_positive": change >= 0 if current_price is not None else None,
-                "name": display_name
-            }
-
-        except Exception as e:
-            print(f"Error fetching {display_name} ({symbol}): {e}")
-            response_data["footer_tickers"][display_name] = {
-                "symbol": symbol,
-                "price": None,
-                "change": None,
-                "change_percent": None,
-                "is_positive": None,
-                "name": display_name
-            }
-
-    return jsonify(response_data)
-
+    return jsonify(data)
 # ============================== Email send System =====================
 
 
@@ -706,25 +629,27 @@ def contact_page():
 
 # ================= SEND CONTACT EMAIL =================
 
-load_dotenv(dotenv_path=".env")
-
 @app.route("/send-contact", methods=["POST"])
 def send_contact():
+    user_name = request.form.get("name")
     user_email = request.form.get("email")
     user_message = request.form.get("message")
 
     email_body = f"""
-New Contact Message 📩
+📩 New Contact Message Received
 
-User Email:
+👤 Name:
+{user_name}
+
+📧 Email:
 {user_email}
 
-User Message:
+💬 Message:
 {user_message}
 """
 
     msg = MIMEText(email_body)
-    msg["Subject"] = "📬 New Contact Message"
+    msg["Subject"] = "📬 New Contact Message from Website"
     msg["From"] = EMAIL_USER
     msg["To"] = EMAIL_USER
     msg["Reply-To"] = user_email
@@ -735,13 +660,14 @@ User Message:
     server.send_message(msg)
     server.quit()
 
-    return render_template("contact.html", message="✅ Message sent successfully")
+    return render_template(
+        "contact.html",
+        message="✅ Your message has been sent successfully"
+    )
 
-
-# ================= SEND CONTACT =================
-
+# ================= SEND CONTACT ===================================
 
 
 if __name__ == "__main__":
-    # app.run(debug=True)
-    pass
+     app.run(debug=True)
+    # pass

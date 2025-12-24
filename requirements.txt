@@ -7,3 +7,5 @@ python-dotenv
 pytz
 tzdata
 apscheduler
+pandas-ta
+

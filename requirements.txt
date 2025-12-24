@@ -2,10 +2,10 @@ Flask
 gunicorn
 requests
 pandas
-yfinance==0.2.40
 python-dotenv
 pytz
 tzdata
 apscheduler
 pandas-ta
-
+finnhub-python
+pycoingecko

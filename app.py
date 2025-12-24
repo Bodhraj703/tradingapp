@@ -25,6 +25,17 @@ cg = CoinGeckoAPI()
 
 ALERT_FILE = "alerts.json"
 
+# ================= CACHE SETUP =================
+crypto_cache = {
+    "data": None,
+    "timestamp": None,
+    "ttl": 60  # Cache for 60 seconds
+}
+
+stock_cache = {
+    "AAPL": {"data": None, "timestamp": None, "ttl": 30}  # Cache for 30 seconds
+}
+
 # ================= SYMBOLS =================
 symbols = {
     # Indian Stocks
@@ -56,8 +67,26 @@ def get_price(name):
     item = symbols[name]
 
     if item["type"] == "crypto":
-        data = cg.get_price(ids=item["symbol"], vs_currencies="usd")
-        return data[item["symbol"]]["usd"]
+        # Use cached crypto data if available
+        now = datetime.now()
+        if (crypto_cache["timestamp"] and 
+            (now - crypto_cache["timestamp"]).seconds < crypto_cache["ttl"] and
+            crypto_cache["data"]):
+            crypto_data = crypto_cache["data"]
+            if item["symbol"] in crypto_data:
+                return crypto_data[item["symbol"]]["usd"]
+        
+        # If not cached or cache expired, fetch new data
+        try:
+            data = cg.get_price(ids=item["symbol"], vs_currencies="usd")
+            crypto_cache["data"] = data
+            crypto_cache["timestamp"] = now
+            return data[item["symbol"]]["usd"]
+        except Exception as e:
+            # If API fails and we have cached data, use it
+            if crypto_cache["data"] and item["symbol"] in crypto_cache["data"]:
+                return crypto_cache["data"][item["symbol"]]["usd"]
+            raise e
 
     quote = finnhub_client.quote(item["symbol"])
     return quote.get("c")
@@ -259,10 +288,28 @@ def market_overview():
         except:
             data[name] = {"price": None, "change": None}
 
-    # BTC separately
-    btc = cg.get_price(ids="bitcoin", vs_currencies="usd")
+    # BTC with caching
+    now = datetime.now()
+    btc_price = None
+    
+    if (crypto_cache["timestamp"] and 
+        (now - crypto_cache["timestamp"]).seconds < crypto_cache["ttl"] and
+        crypto_cache["data"]):
+        btc_data = crypto_cache["data"]
+        if "bitcoin" in btc_data:
+            btc_price = btc_data["bitcoin"]["usd"]
+    else:
+        try:
+            btc_data = cg.get_price(ids="bitcoin", vs_currencies="usd")
+            crypto_cache["data"] = btc_data
+            crypto_cache["timestamp"] = now
+            btc_price = btc_data["bitcoin"]["usd"]
+        except:
+            if crypto_cache["data"] and "bitcoin" in crypto_cache["data"]:
+                btc_price = crypto_cache["data"]["bitcoin"]["usd"]
+    
     data["BTC"] = {
-        "price": btc["bitcoin"]["usd"],
+        "price": btc_price,
         "change": None
     }
 
@@ -345,18 +392,65 @@ def hotchart_data():
 @app.route("/footer-data")
 def footer_data():
     data = {}
+    now = datetime.now()
 
-    crypto = cg.get_price(ids="bitcoin,ethereum", vs_currencies="usd")
+    # Get crypto data with caching
+    crypto = None
+    if (crypto_cache["timestamp"] and 
+        (now - crypto_cache["timestamp"]).seconds < crypto_cache["ttl"] and
+        crypto_cache["data"]):
+        crypto = crypto_cache["data"]
+    else:
+        try:
+            crypto = cg.get_price(ids="bitcoin,ethereum", vs_currencies="usd")
+            crypto_cache["data"] = crypto
+            crypto_cache["timestamp"] = now
+        except Exception as e:
+            # If API call fails, use cached data
+            if crypto_cache["data"]:
+                crypto = crypto_cache["data"]
+            else:
+                # Return empty data but don't crash
+                return jsonify({
+                    "BTC": {"price": None, "change": None},
+                    "ETH": {"price": None, "change": None},
+                    "AAPL": {"price": None, "change": None, "is_positive": False}
+                })
 
-    data["BTC"] = {"price": crypto["bitcoin"]["usd"], "change": None}
-    data["ETH"] = {"price": crypto["ethereum"]["usd"], "change": None}
+    if crypto:
+        data["BTC"] = {"price": crypto["bitcoin"]["usd"], "change": None}
+        data["ETH"] = {"price": crypto["ethereum"]["usd"], "change": None}
+    else:
+        data["BTC"] = {"price": None, "change": None}
+        data["ETH"] = {"price": None, "change": None}
 
-    aapl = finnhub_client.quote("AAPL")
-    data["AAPL"] = {
-        "price": aapl["c"],
-        "change": round(aapl["c"] - aapl["pc"], 2),
-        "is_positive": aapl["c"] >= aapl["pc"]
-    }
+    # Get AAPL data with caching
+    aapl = None
+    if (stock_cache["AAPL"]["timestamp"] and 
+        (now - stock_cache["AAPL"]["timestamp"]).seconds < stock_cache["AAPL"]["ttl"] and
+        stock_cache["AAPL"]["data"]):
+        aapl = stock_cache["AAPL"]["data"]
+    else:
+        try:
+            aapl = finnhub_client.quote("AAPL")
+            stock_cache["AAPL"]["data"] = aapl
+            stock_cache["AAPL"]["timestamp"] = now
+        except Exception as e:
+            if stock_cache["AAPL"]["data"]:
+                aapl = stock_cache["AAPL"]["data"]
+    
+    if aapl:
+        data["AAPL"] = {
+            "price": aapl["c"],
+            "change": round(aapl["c"] - aapl["pc"], 2),
+            "is_positive": aapl["c"] >= aapl["pc"]
+        }
+    else:
+        data["AAPL"] = {
+            "price": None,
+            "change": None,
+            "is_positive": False
+        }
 
     return jsonify(data)
 
